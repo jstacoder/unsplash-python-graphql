@@ -1,34 +1,5 @@
 
-# Todo: CategoryObjectType
-# Todo: UserObjectType 
-```python
-[
-  'id', 'updated_at', 'username',
-  'name', 'first_name', 'last_name',
-  'twitter_username', 'portfolio_url',
-  'bio', 'location', 'links', 'profile_image',
-  'instagram_username', 'total_collections',
-  'total_likes', 'total_photos', 'accepted_tos'
-]
-```
-# Todo: LocationObjectType
-```
-{
-     "city": "Montreal",
-     "country": "Canada",
-     "position": {
-       "latitude": 45.4732984,
-       "longitude": -73.6384879
-     }
- }
- ```
- 
 # Todo: SponsorObjectType  
-
-# Todo: TagObjectType 
-```
-{ title }
-```
 
 # Todo: CollectionObjectType
 ```

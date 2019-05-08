@@ -54,6 +54,46 @@ class UrlObjectType(graphene.ObjectType):
     )
 
 
+class PositionObjectType(graphene.ObjectType):
+    latitude = graphene.Float()
+    longitude = graphene.Float()
+
+
+class LocationObjectType(graphene.ObjectType):
+    city = graphene.String()
+    country = graphene.String()
+    position = graphene.Field(
+        PositionObjectType
+        )
+
+
+class UserObjectType(graphene.ObjectType):
+    id = graphene.ID()
+    updated_at = graphene.DateTime()
+    username = graphene.String()
+    name = graphene.String()
+    first_name = graphene.String()
+    last_name = graphene.String()
+    twitter_username = graphene.String()
+    portfolio_url = graphene.String()
+    bio = graphene.String()
+    location = graphene.Field(
+        LocationObjectType
+        )
+    links = graphene.Field(LinkObjectType)
+    profile_image = graphene.String()
+    instagram_username = graphene.String()
+    total_collections = graphene.Int()
+    total_likes = graphene.Int()
+    total_photos = graphene.Int()
+    acepted_tos = graphene.Boolean()
+
+
+
+class CategoryObjectType(graphene.ObjectType):
+    title = graphene.String()
+
+
 class PhotoObjectType(graphene.ObjectType):
     id = graphene.ID(
         description='unsplash photo id'
@@ -102,8 +142,32 @@ class PhotoObjectType(graphene.ObjectType):
     likes = graphene.Int(
         description='how many like the image has'
     )
+    user = graphene.Field(
+        UserObjectType,
+        description='the user who uploaded this image'
+    )
+    location = graphene.Field(
+        LocationObjectType,
+        description='location associcated with the image'
+    )
+    categories = graphene.List(
+        CategoryObjectType,
+        description='tags for image'
+    )
 
 
+class OrientationEnum(graphene.Enum):
+    LANDSCAPE = 'landscape'
+    PORTRAIT = 'portrait'
+    SQUARISH = 'squarish'
+
+
+class PhotoSearchQueryFilterInputType(graphene.InputObjectType):
+    query = graphene.String()
+    page = graphene.Int()    
+    per_Page = graphene.Int()
+    collections = graphene.List(graphene.ID)
+    orientation = OrientationEnum()
 
 class OrderByEnum(graphene.Enum):
     class Meta:
@@ -126,6 +190,15 @@ class PhotoQueryFilterInputType(graphene.InputObjectType):
     )
 
 
+class PhotoSearchResultObjectType(graphene.ObjectType):
+    total = graphene.Int()
+    total_pages = graphene.Int()
+    results = graphene.List(
+        PhotoObjectType
+    )
+
+
+
 class PhotoQuery(graphene.ObjectType):
     get_photos = graphene.List(
         PhotoObjectType,
@@ -143,6 +216,13 @@ class PhotoQuery(graphene.ObjectType):
         PhotoObjectType,
         description='get a random photo'
     )
+    search_photos = graphene.Field(
+        PhotoSearchResultObjectType,
+        query_filter=graphene.Argument(
+            PhotoSearchQueryFilterInputType
+        )
+    )
+
 
     def resolve_get_photos(self, info, query_filter=None, **kwargs):
         photos = [
@@ -152,15 +232,10 @@ class PhotoQuery(graphene.ObjectType):
             ).json()
         ]
         for photo in photos:
-            photo.pop('categories','')
             photo.pop('sponsored_by','')
             photo.pop('sponsored_impressions_id','')
-            photo.pop('likes','')
-            photo.pop('liked_by_user','')
             photo.pop('current_user_collections','')
-            photo.pop('user','')
             photo.pop('exif','')
-            photo.pop('location','')
             photo.pop('sponsorship', '')
         return [
             PhotoObjectType(**photo) for photo in photos
