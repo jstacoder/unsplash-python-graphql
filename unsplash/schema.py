@@ -64,7 +64,7 @@ class LocationObjectType(graphene.ObjectType):
     country = graphene.String()
     position = graphene.Field(
         PositionObjectType
-        )
+    )
 
 
 class UserObjectType(graphene.ObjectType):
@@ -150,6 +150,10 @@ class PhotoObjectType(graphene.ObjectType):
         LocationObjectType,
         description='location associcated with the image'
     )
+    tags = graphene.List(
+        CategoryObjectType,
+        description='tags for image'
+    )
     categories = graphene.List(
         CategoryObjectType,
         description='tags for image'
@@ -165,7 +169,7 @@ class OrientationEnum(graphene.Enum):
 class PhotoSearchQueryFilterInputType(graphene.InputObjectType):
     query = graphene.String()
     page = graphene.Int()    
-    per_Page = graphene.Int()
+    per_page = graphene.Int()
     collections = graphene.List(graphene.ID)
     orientation = OrientationEnum()
 
@@ -189,12 +193,18 @@ class PhotoQueryFilterInputType(graphene.InputObjectType):
         description='number of results per page'
     )
 
+class ErrorObjectType(graphene.ObjectType):
+    message = graphene.String()
+
 
 class PhotoSearchResultObjectType(graphene.ObjectType):
     total = graphene.Int()
     total_pages = graphene.Int()
     results = graphene.List(
         PhotoObjectType
+    )
+    errors = graphene.List(
+        ErrorObjectType
     )
 
 
@@ -223,30 +233,61 @@ class PhotoQuery(graphene.ObjectType):
         )
     )
 
+    @classmethod
+    def _process_photos(cls, photos):
+        return [
+            cls._process_photo(photo)
+            for photo in photos
+        ]
 
-    def resolve_get_photos(self, info, query_filter=None, **kwargs):
+    @staticmethod
+    def _process_photo(photo):
+        photo.pop('sponsored_by', '')
+        photo.pop('sponsored_impressions_id', '')
+        photo.pop('current_user_collections', '')
+        photo.pop('exif', '')
+        photo.pop('sponsorship', '')
+        return photo
+
+    @staticmethod
+    def resolve_get_photos(root, info, query_filter=None, **kwargs):
         photos = [
             photo
             for photo in UnsplashPhotos.get(
                 query_filter=query_filter
             ).json()
         ]
-        for photo in photos:
-            photo.pop('sponsored_by','')
-            photo.pop('sponsored_impressions_id','')
-            photo.pop('current_user_collections','')
-            photo.pop('exif','')
-            photo.pop('sponsorship', '')
         return [
-            PhotoObjectType(**photo) for photo in photos
+            PhotoObjectType(**photo)
+            for photo in PhotoQuery._process_photos(photos)
         ]
 
+    @staticmethod
+    def resolve_search_photos(root, info, query_filter=None, **kwargs):
+        print(query_filter.query)
+
+        response = UnsplashPhotos.search(query_filter=query_filter)
+        print(response.request.url)
+        results = response.json()
+        photos = results.pop('results')
+        results['results'] = [PhotoObjectType(**photo) for photo in PhotoQuery._process_photos(photos)]
+        print(results)
+        return PhotoSearchResultObjectType(
+            **results
+        )
 
     def resolve_get_photo(self, info, id=None, **kwargs):
-        return bunchify(UnsplashPhoto.get(photo_id=id).json())
+        return PhotoObjectType(
+            **UnsplashPhoto.get(photo_id=id).json()
+        )
 
-    def resolve_get_random_photo(self, info, **kwargs):
-        return bunchify(UnsplashPhoto.get(random=True).json())
+    @staticmethod
+    def resolve_get_random_photo(root, info, **kwargs):
+        return PhotoObjectType(
+            **PhotoQuery._process_photo(
+                UnsplashPhoto.get(random=True).json()
+            )
+        )
 
 
 

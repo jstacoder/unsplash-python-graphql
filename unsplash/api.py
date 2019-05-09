@@ -1,8 +1,17 @@
 import os
 from collections import OrderedDict
+from enum import Enum as PyEnum
+from typing import (
+    Optional,
+    Dict,
+    Any,
+)
 
-from requests import Session
-
+from future.utils import iteritems
+from requests import (
+    Session,
+    Response,
+)
 
 UNSPLASH_ACCESS_KEY = os.environ.get('UNSPLASH_ACCESS_KEY', '')
 
@@ -40,10 +49,33 @@ class UnsplashApi:
         return super().head(self.api_url, *args, **kwargs)
 
 
-class UnsplashPhotoFilter:
+
+class FilterBase:
+    def __init__(self, *args, **kwargs):
+        self_fields = dir(self)
+        for key, val in iteritems(kwargs):
+            if key in self_fields:
+                setattr(self, key, val)
+
+
+class UnsplashPhotoFilter(FilterBase):
     order_by = 'popular' # [latest, oldest, popular]
     page = 1
     per_page = 10
+
+
+class OrientationEnum(PyEnum):
+    LANDSCAPE = 'landscape'
+    PORTRAIT = 'portrait'
+    SQUARISH = 'squarish'
+
+
+class UnsplashSearchPhotoFilter(FilterBase):
+    query = ''
+    page = 1
+    per_page = 10
+    collections = []
+    orientation = OrientationEnum.LANDSCAPE
 
 
 class UnsplashPhotos(UnsplashApi):
@@ -57,6 +89,24 @@ class UnsplashPhotos(UnsplashApi):
                 order_by=query_filter.order_by,
                 page=query_filter.page,
                 per_page=query_filter.per_page,
+            )
+            kwargs['params'] = params
+        return super(cls, cls).get(**kwargs)
+
+    @classmethod
+    def search(cls, query_filter=None, **kwargs):
+        # type: (UnsplashSearchPhotoFilter, Optional[Dict[Any, Any]]) -> Response
+        cls.api_url = '{}/search/photos'.format(
+            UnsplashApi.api_url
+        )
+        if query_filter:
+            params = kwargs.pop('params', {})
+            params.update(
+                page=query_filter.page,
+                per_page=query_filter.per_page,
+                query=query_filter.query,
+                collections=query_filter.collections,
+                orentation=query_filter.orientation,
             )
             kwargs['params'] = params
         return super(cls, cls).get(**kwargs)
@@ -75,3 +125,5 @@ class UnsplashPhoto(UnsplashApi):
             photo_id or random and 'random'
         )
         return super(cls, cls).get(**kwargs)
+
+
